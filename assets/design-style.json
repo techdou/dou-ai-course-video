@@ -1,0 +1,44 @@
+{
+  "name": "Orange Minimal / 暖橙活力几何",
+  "colors": {
+    "accent": "#FF9500",
+    "background": "#F0EFED",
+    "background-warm": "#FFD580",
+    "background-neutral": "#EBEBEB",
+    "text": "#1A1A1A",
+    "text-on-dark": "#FFFFFF",
+    "secondary": "#4A4A4A"
+  },
+  "fonts": {
+    "heading": "Inter",
+    "body": "Inter"
+  },
+  "styleGuide": "Warm business/creator explainer language: paper-like neutral backgrounds, flat geometric blocks, a single saturated orange focal accent, bold Inter typography, numbered badges, simple timelines, clean charts. Friendly, direct, structured; not luxurious or cinematic. Orange identifies the key number/node/bar/banner; everything else stays black/white/gray/warm neutral. Motion is clear and rhythmic: slide-up text, left-to-right block reveals, staggered node pops, simple fade/translate exits. Avoid gradients, heavy glow, dark tech atmosphere, ornate serif editorial, over-decorated cards.",
+  "mgDefaults": {
+    "termLabel": {
+      "width": 320,
+      "height": 420,
+      "bgOpacity": 0.78,
+      "termEnFontSize": 38,
+      "termZhFontSize": 23,
+      "termZhLineHeight": 1.55,
+      "badgeSize": 76,
+      "position": "left 48 / top 300",
+      "animation": "soft fade-in 0.8s + 10px rise; badge slight scale; fade-out 0.6s"
+    },
+    "chain": {
+      "width": 260,
+      "height": 460,
+      "bgOpacity": 0.78,
+      "position": "left 48 / top 240",
+      "animation": "nodes appear top-to-bottom, orange arrows draw down"
+    },
+    "chapterTitle": {
+      "width": 1920,
+      "height": 300,
+      "position": "top 170",
+      "titleFontSize": 54,
+      "subtitleFontSize": 24
+    }
+  }
+}
