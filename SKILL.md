@@ -30,7 +30,7 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 ## 工作流总览
 
 1. **建项目**：ChatCut 新建项目，画布比例匹配素材（源 16:10 → 1920×1200）
-2. **导入素材**：`import_media` 创建会话 + 官方 `upload-media.mjs` 上传；网络慢时用压缩代理 + 串行 curl 分片（见 `assets/workflow.md` 常见坑）
+2. **导入素材**：`import_media` 创建会话 + 官方 `upload-media.mjs` 上传；大文件网络慢时用**串行分片版 helper**（复制脚本改逐片上传 + 放宽超时，见 `assets/workflow.md` 常见坑 1）。**开始 Script 剪辑前先确认 `track_progress target=upload` 云端字节就绪**——中途补传会生成新资产/新转录，导致精修脚本失配（见常见坑 2）
 3. **转录**：等 `track_progress target=transcription` 就绪
 4. **修正 ASR**：`manage_transcript fix` 修正错词（先 preview 探测 word 索引；按字符分词）
 5. **剪口播**：`read_script` → 编辑 `timeline.md` → `apply_script`；删除重复讲解、失败重录、残句、语气词；词级错误用 `~~…~~`
@@ -43,6 +43,12 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 12. **报告**：按 `koubo-clean` 的 `references/report-template.md` 生成剪辑报告，待确认项追加到项目根目录 `pending-words.md`
 13. **导出与响度归一化**：`submit_export`（1080p）→ `track_export` 等完成 → 下载本地 → 按“成片响度归一化”运行 `assets/normalize-14lufs.ps1`（默认 -14 LUFS 平台标准）→ ebur128 验证
 
+## 分段与命名策略（2026-08-10 豆哥确认）
+
+- 整节课超过 15 分钟：按素材/内容拆成独立时间线（A/B/C/D 段）分别精修，最后在第三方剪辑平台按时间线拼接；不要在一条长时间线里反复调整，避免改 A 牵连 B/C。
+- 单段小于 15 分钟：直接在一条时间线内裁剪。
+- 命名规范：`第N节-A-理论` / `第N节-B-实操上` / `第N节-C-实操下`（或按内容命名）；废弃/中间版本一律隐藏，只保留「原始版（对照，勿改）」+ 精修段，避免版本混乱。
+
 ## 风格规范（暖橙活力几何 · 默认模板）
 
 完整 designSpec 见 `assets/design-style.json`。要点：
@@ -53,11 +59,18 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 - 动效：柔和淡入 + 轻微上浮（0.7–0.9s），节点依次浮现，结尾淡出；禁止弹跳、强滑动、辉光、渐变
 - 禁忌：深色科技感、花哨衬线、玻璃拟态、过度装饰卡片
 
+## 分段 B-roll 衔接（image2-api）
+
+- 段与段拼接处生成 AI 概念插图做转场：开场、中段、结尾/预告各 1 张，全屏 4 秒 + 章节标题 MG
+- 生图方向：暖米底、扁平几何、橙色点缀、无文字无 logo、顶部/底部留白、无渐变无辉光（与章节卡一致）
+- 流程：`image2-api` 生成 → `import_media` 入库 → 放到该段时间线 V3 开头/结尾，V4 叠标题；导出后在第三方平台拼接时作为转场卡
+
 ## 术语贴片体系
 
 - 形式：竖版（约 320×420 自然盒），左侧放置（right/bottom 用 left/top 锚点），半透明底（bgOpacity 0.78）
 - 结构：顶部橙色编号徽章 + 类别标签，中部英文术语（38px 粗体），下方中文解释（23px，行距 1.55）
 - 文案：英文术语 + 一句口语化中文解释 + 类别（核心概念 / 风险提醒 / 底层机制 / 实战技能 / 课程预告）
+- 文案铁律：解释必须讲“这个概念是什么”，不要用具体模型名代替定义（如“文生图 = 用文字描述画面，AI 生成对应图片”，不写“Seedream/Seedance”）
 - 密度高时（如 Skill→MCP→API→工作流 连续讲解）用竖版链路贴片替代多个标签
 - 代码资产：`assets/mg-term-label.jsx`、`assets/mg-chain.jsx`
 
@@ -78,7 +91,7 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 
 ## 字幕样式
 
-见 `assets/captions-style.md`。默认：白底黑字卡片、底部居中、单行、隐藏句尾标点。
+见 `assets/captions-style.md`。默认：白底黑字卡片、底部居中、单行、隐藏句尾标点。英语大小写按“术语命名约定”统一：短词全大写（含 OK）、长词驼峰（camelCase）、扩展名点号开头（.ppt/.pptx/.html）；字幕显示不得出现 prompt/api/ppt/点ppt 这类变体。
 
 ## 成片响度归一化
 
@@ -114,6 +127,26 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 - 跨句/跨段的语义重复（如“学完 10 节课能做出什么”多处出现）：先列清单给用户确认，不擅自删
 - 拿不准的 ASR 疑点：保留并列入清单让用户听原话
 
+## 剪辑风格：小而精美（2026-08-10 豆哥确认）
+
+豆哥课程的统一成片标准：小、精、美——不拖沓、不重复、无等待。
+
+**必剪**
+- 助词/口头禅：哦、啊、嗯、呃、呢 等无信息量的语气词（句首「啊，」「哦，」「嗯，」「呃，」、句中独立出现、单独成行的都剪）；有语义的「呢」按上下文保留（如反问「为什么呢」）
+- 重复描述：同一层意思紧挨着说两遍或多遍，只留一遍；改口重说的整句直接删
+- 等待/无人声段：演示中等待 agent 回复、生成、思考、休息的静默（哪怕 1 分钟以上）直接裁掉；如整段画面仍有价值但无讲述，可 2-4 倍速压缩（默认直接裁）
+- 长静默：`read_script showSilence=true` 看到的 `[silence=Xs]` 超过 2s 的直接删除；1-2s 压缩到 0.25-0.5s
+
+**保留**
+- 教学性重复/刻意强调（例如对比实验的重复演示）
+- 必要的短停顿（≤1s）保持节奏
+- 用户明确要求保留的内容
+
+**执行**
+- 在 Script 层删除（`~~…~~` / 删行），不要只改字幕；删行时连带清相邻 `[silence]` 标记
+- 每次清完必须 `edit_captions refresh`，再重扫字幕术语，避免 override 丢失
+- 验证标准：成片里听不到“哦/啊/嗯/呃”口头禅，也没有长时间无讲述的画面
+
 **执行细节**
 - 行内叠字用 `~~字~~`；跨多行保留一半时注意 `[sN@M]` 标识
 - 删除整行时，连带清掉相邻一个 `[silence]` 标记，避免两段停顿叠加
@@ -122,6 +155,15 @@ description: 豆懂AI 课程视频剪辑模板：把口播课素材（多段录�
 - 品牌词全系列统一（如 workbuddy / Dify / Agnes / Boson / DeepSeek / Seedream / Seedance / K12 / MiMo / 助学群），发现新变体先向用户确认再统一
 - `merge_cards` 不能合并不同 source item 的卡；需要拼接时用“前卡尾 + 后卡头”拆文本
 - 常见坑：`apply_script` 校验可能用旧 ASR 缓存（fix 后按旧拼写写行可过校验，缓存刷新后需新拼写）；`find_transcript` 命中源转录，卡 override 不影响搜索命中
+
+### 术语命名约定（2026-08-10 豆哥确认）
+
+- **词元**：Token 的中文译名统一为“词元”，不是“词源”（口播字幕、贴片、文档全部适用）。
+- **短单词全大写**：MCP、API、LLM、PPT、URL、CSV、PDF、TTS、ASR、OPC 等一律全大写，不出现 mcp、Mcp、api、llm。
+- **长单词驼峰式**：DeepSeek、WorkBuddy、Seedream、Seedance、EdgeOne、MiniMax、GitHub、OpenAI、Agnes、Boson、MiMo 等统一驼峰式。
+- **常见错误写法**：Deepseek、Work Buddy、Workbuddy、Workbody、Workday、Workbook、WorkerBody 一律归为 WorkBuddy；Anys/Innis/ANS 归为 Agnes；Bosen/Bosun/波松/沃松 归为 Boson；DANCE 系列 → Seedance 系列；购物模式 → Goal 模式（2026-08-11 豆哥确认，是 Goal 不是 Go）；口播读 TTS 但 ASR 误写“电路”时，字幕显示 TTS。
+- **字幕显示统一**：短词全大写（MCP/API/LLM/PPT/URL/OK 等）、长词驼峰（DeepSeek/WorkBuddy/Agnes 等）、扩展名点号开头（.ppt/.pptx/.html）；口播字幕、贴片、讲义三处一致。
+- 全量检查时按上面规则扫描口播转录（find_transcript）+ 字幕卡 + 贴片 MG 三层的变体，先改字幕显示，源转录变体列入待办（走 SRT 方案时一并修正）。
 
 ## 验证要求
 

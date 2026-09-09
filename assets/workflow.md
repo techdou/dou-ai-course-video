@@ -80,11 +80,23 @@ track_export action=status renderIds=<id> 直到 complete
 
 ## 常见坑清单（本次实战踩过）
 
-1. **上传大视频超时**：本机到 S3 国际链路慢时，官方 helper 分片 120s 超时且并发分片互相抢带宽。
-   解决：先本地压 2.5Mbps 代理（1920×1200/30fps，内容不变）→ 复制 helper 改串行分片 → 用 curl 上传分片（`-D` 存响应头取 ETag，`--data-binary @part`，超时放宽 600s）
-2. **apply_script 旧缓存**：见第 3 节；不要反复 refresh，先按旧源文本提交
-3. **MG 属性校验**：属性声明与代码读取必须一一对应
-4. **MG 尺寸锁定**：自然盒创建后不可改
-5. **应用内浏览器标签会话会失效**：页面闪退时用 `get_editor_url` 拿新 boot token 重开；也可给用户干净外链
-6. **字幕层在最顶层**：B-roll/章节卡全屏时字幕仍显示，属正常；贴片避开底部字幕条
-7. **生图服务额度**：provider 有 fallback 链，但 vision 复核服务可能限额；额度恢复前用数据层验证+用户自查
+1. **上传大视频超时（2026-08-11 实测方案）**：本机到 S3 国际链路慢时，官方 helper 默认把同一文件分片**并行**上传（`uploadPreparedFile` 里 `Promise.all(batch)`），9 片互相抢带宽，单片约 60MB 在 120s 超时内传不完（只有单片单独跑时能过）。
+   解决：复制 `skills/asset-import/scripts/upload-media.mjs` 到临时目录，改两处——
+   - `UPLOAD_RETRY_ATTEMPT_TIMEOUT_MS = 120_000` → `300_000`
+   - 把 `uploadPreparedFile` 里 `batch.push(...)` + `Promise.all(batch)` 改成逐片 `await uploadPart(...)` 串行循环
+   然后用串行版跑：`node <serial-helper> --token <t> --endpoint <e> --asset-id <占位id> <file> --json-out ...`。
+   实测：547MB / 9 片串行约 30 分钟全部成功；token 30 分钟有效期可能卡在最后 finalize（HTTP 401），换新 token 重跑同一命令收尾即可（服务端会重传全部片，但能完成）。
+   注：不要用 curl 手动传分片替代 helper（asset-import 只认可 helper 流程）；串行版 helper 本质就是“切段上传”。
+
+2. **素材补传/重新导入的转录差异（2026-08-11 实测）**：
+   - 上传未完成的旧资产**无法补字节**：`--asset-id <旧id>` resume 在 `prepareRegisteredUploadRequest` / `finalizeTranscriptionAudioRequest` 均返回 HTTP 500，服务端拒绝续传。
+   - 补传同一文件会生成**新 assetId + 新转录**；新转录的段落切分、标点和个别用词可能与旧转录不同（实测：行号偏移 5-6、“豆哥/豆包”、“长程/长城”、逗号位置都有差异），导致基于旧转录的 Script 精修行（`[sN]` 行号+文本）**无法无损平移到新资产**，自动文本迁移也不可靠。
+   - 因此：**开始 Script 剪辑前，先 `track_progress target=upload` 确认素材云端字节就绪**；若中途补传生成新资产，要么接受用新转录重新精修，要么回退旧素材继续（旧素材将无法云渲染/云导出）。
+   - 回退流程：`edit_item` delete 新 item + add 旧 asset 原范围 item → `read_script` 拿新 stamp → `apply_script` 原精修 timelineMd（H3 保持旧 asset 短 id）→ `clean_script` 重压停顿。
+
+3. **apply_script 旧缓存**：见第 3 节；不要反复 refresh，先按旧源文本提交
+4. **MG 属性校验**：属性声明与代码读取必须一一对应
+5. **MG 尺寸锁定**：自然盒创建后不可改
+6. **应用内浏览器标签会话会失效**：页面闪退时用 `get_editor_url` 拿新 boot token 重开；也可给用户干净外链
+7. **字幕层在最顶层**：B-roll/章节卡全屏时字幕仍显示，属正常；贴片避开底部字幕条
+8. **生图服务额度**：provider 有 fallback 链，但 vision 复核服务可能限额；额度恢复前用数据层验证+用户自查

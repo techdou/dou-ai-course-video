@@ -4,13 +4,15 @@
 
 剪课时用此表扫描全部字幕卡；发现新变体先向用户确认再统一，并回填本表。
 
+命名规则：短单词全大写（MCP / API / LLM / PPT / URL / CSV / PDF / TTS / ASR / OPC），长单词驼峰式（DeepSeek / WorkBuddy / Seedream / Seedance / EdgeOne / MiniMax / GitHub / OpenAI / Agnes / Boson / MiMo）；Token 中文译名统一为“词元”。
+
 | 识别变体 | 正确拼写 |
 | --- | --- |
 | Anys / Anyscale / Agens / Aginess | Agnes |
-| Workday / Workbody / WorkerBody / Work party | Workbuddy |
+| Workday / Workbody / WorkerBody / Work party / Work Buddy / workbuddy / Workbuddy | WorkBuddy |
 | 迪范 | Dify |
 | Bosen | Boson |
-| Keep sick | DeepSeek |
+| Keep sick / Deepseek / Deep Seek | DeepSeek |
 | C dream / C dance | Seedream（生图）/ Seedance（生视频） |
 | train（字节跳动） | Trae |
 | To us | tools |
@@ -19,6 +21,8 @@
 | 办学群 / 代学群 | 助学群 |
 | 相或者是 | 或者是 |
 | 我愿完成 | 你愿完成 |
+| 词源 | 词元 |
+| mcp / Mcp / api / llm | MCP / API / LLM |
 
 ## AIGC 术语贴片表（termEn / termZh / category）
 
@@ -28,7 +32,7 @@
 | --- | --- | --- |
 | LLM | 大语言模型（擅长理解和生成语言） | 核心概念 |
 | Prompt | 提示词（给 AI 的清晰任务表达） | 核心概念 |
-| Token | 词源（AI 处理文字的基本单位） | 底层机制 |
+| Token | 词元（AI 处理文字的基本单位） | 底层机制 |
 | 上下文窗口 | 模型一次能读并记住的内容长度 | 底层机制 |
 | Agent | 智能体（规划并调用工具执行任务） | 核心概念 |
 | Skill | 技能包（给智能体的标准作业流程） | 核心概念 |
